@@ -165,7 +165,8 @@ SELECT
         MAX(order_mrp_amount) AS order_mrp_amount,
         MAX(new_customer_apd) AS new_customer_apd,
         MAX(new_customer_paid_apd) AS new_customer_paid_apd,
-        CURRENT_TIMESTAMP AS create_timestamp,
+        CURRENT_TIMESTAMP AS dw_create_timestamp,
+        CURRENT_TIMESTAMP AS dw_update_timestamp,
         max(b.etl_batch_no) AS etl_batch_no,
         max(b.etl_batch_date) AS etl_batch_date
     FROM X 
