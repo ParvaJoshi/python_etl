@@ -1,42 +1,43 @@
+
 {{ config(
-    materialized='incremental'
+    materialized='incremental',
+    unique_key='officecode'
 ) }}
-WITH source_data AS (
-    SELECT
-        st.officeCode,
-        st.city,
-        st.phone,
-        st.addressLine1,
-        st.addressLine2,
-        st.state,
-        st.country,
-        st.postalCode,
-        st.territory,
-        st.create_timestamp,
-        st.update_timestamp,
-        bc.etl_batch_no,
-        bc.etl_batch_date
-    FROM {{source("devstage","offices")}} st
-    CROSS JOIN (
-        SELECT etl_batch_no, etl_batch_date
-        FROM etl_metadata.batch_control
-    ) bc
-),
-existing_data AS (
-    SELECT
-        dw.officeCode,
-        dw.dw_office_id
-    FROM {{this}} dw
-),
-ranked_data AS (
-    SELECT
-        s.*,
-        COALESCE(MAX(dw.dw_office_id) OVER (), 0) + ROW_NUMBER() OVER (ORDER BY s.officeCode) AS dw_office_id
-    FROM source_data s
-    LEFT JOIN existing_data dw ON s.officeCode = dw.officeCode
+
+with ranked_data as (
+    select
+        sd.officecode as officecode,
+        sd.city,
+        sd.phone,
+        sd.addressline1,
+        sd.addressline2,
+        sd.state,
+        sd.country,
+        sd.postalcode,
+        sd.territory,
+        sd.create_timestamp as src_create_timestamp,
+        coalesce(sd.update_timestamp, ed.src_update_timestamp) as src_update_timestamp,
+        em.etl_batch_no,
+        em.etl_batch_date,
+        case
+            when ed.officecode is null then current_timestamp
+            else ed.dw_create_timestamp
+        end as dw_create_timestamp,
+        case
+            when ed.officecode is not null then current_timestamp
+            else ed.dw_create_timestamp
+        end as dw_update_timestamp,
+        row_number() over (order by sd.officecode) + coalesce(max(ed.dw_office_id) over (), 0) as dw_office_id
+    from
+        devstage.offices sd
+    left join devdw.offices ed on sd.officecode = ed.officecode
+    cross join etl_metadata.batch_control em
 )
-SELECT *
-FROM ranked_data
+
+select *
+from ranked_data
+
 {% if is_incremental() %}
-WHERE officeCode IS NOT NULL -- Adjust this condition as needed
+WHERE
+    ranked_data.officecode IS NOT NULL  -- Only process new or updated rows
 {% endif %}
