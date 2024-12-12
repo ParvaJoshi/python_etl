@@ -1,4 +1,4 @@
---select{{ config(
+{{ config(
     materialized='incremental',
     unique_key='src_orderNumber'
 ) }}
@@ -58,7 +58,7 @@ final_data AS (
         bc.etl_batch_no,
         bc.etl_batch_date,
         -- Generate auto-increment dw_order_id for new records
-        ROW_NUMBER() OVER () + (SELECT max_order_id FROM max_id) AS dw_order_id
+        coalesce(dw.dw_order_id,ROW_NUMBER() OVER () + (SELECT max_order_id FROM max_id)) AS dw_order_id
     FROM staging_orders AS st
     CROSS JOIN batch_control AS bc
     JOIN customer_mapping AS cm
@@ -72,3 +72,6 @@ final_data AS (
 -- Insert or update records in the target table
 SELECT *
 FROM final_data
+{% if is_incremental() %}
+WHERE src_orderNumber IS NOT NULL -- Adjust this condition as needed
+{% endif %}

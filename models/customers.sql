@@ -29,7 +29,7 @@ with ranked_data as (
             when ed.src_customernumber is  null then current_timestamp
             else ed.dw_create_timestamp
         end as dw_create_timestamp,
-        row_number() over (order by sd.customernumber) + coalesce(max(ed.dw_customer_id) over (), 0) as dw_customer_id
+        coalesce(dw_customer_id,row_number() over (order by sd.customernumber) + coalesce(max(ed.dw_customer_id) over (), 0)) as dw_customer_id
     from
         {{source("devstage","customers")}} sd
     left join {{this}} ed on sd.customernumber = ed.src_customernumber
@@ -39,3 +39,6 @@ with ranked_data as (
 
 select *
 from ranked_data
+{% if is_incremental() %}
+WHERE src_customernumber IS NOT NULL -- Adjust this condition as needed
+{% endif %}

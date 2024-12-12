@@ -44,7 +44,7 @@ final_data AS (
         bc.etl_batch_no,
         bc.etl_batch_date,
         cl.dw_customer_id,
-        row_number() over () + coalesce(max(dw.dw_payment_id) over (), 0) as dw_payment_id
+        coalesce(dw.dw_payment_id,row_number() over () + coalesce(max(dw.dw_payment_id) over (), 0)) as dw_payment_id
     FROM staging_payments AS sp
     CROSS JOIN batch_control AS bc
     LEFT JOIN {{ this }} AS dw
@@ -57,3 +57,6 @@ final_data AS (
 -- Insert or update records in the target table
 SELECT *
 FROM final_data
+{% if is_incremental() %}
+WHERE checkNumber IS NOT NULL -- Adjust this condition as needed
+{% endif %}

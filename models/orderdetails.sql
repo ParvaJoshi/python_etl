@@ -81,3 +81,6 @@ SELECT
     dw_order_id,
     dw_product_id
 FROM final_data
+{% if is_incremental() %}
+WHERE src_orderNumber IS NOT NULL -- Adjust this condition as needed
+{% endif %}
